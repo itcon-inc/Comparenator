@@ -1,0 +1,8 @@
+name: Comparenator
+type: module
+description: Visual regression comparison tool for environments and node revisions.
+core_version_requirement: ^11 || ^12
+package: Development
+dependencies:
+  - drupal:system
+  - drupal:node

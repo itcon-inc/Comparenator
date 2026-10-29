@@ -1,0 +1,20 @@
+services:
+  comparenator.screenshot_manager:
+    class: Drupal\comparenator\Service\ScreenshotManager
+    arguments: ['@file_system', '@config.factory', '@logger.channel.comparenator']
+
+  comparenator.pixel_diff:
+    class: Drupal\comparenator\Service\PixelDiffGenerator
+    arguments: ['@logger.channel.comparenator']
+
+  comparenator.environment_manager:
+    class: Drupal\comparenator\Service\EnvironmentManager
+    arguments: ['@config.factory']
+
+  comparenator.revision_manager:
+    class: Drupal\comparenator\Service\RevisionManager
+    arguments: ['@entity_type.manager', '@logger.channel.comparenator']
+
+  logger.channel.comparenator:
+    parent: logger.channel_base
+    arguments: ['comparenator']

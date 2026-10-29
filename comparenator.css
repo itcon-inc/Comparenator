@@ -1,0 +1,25 @@
+.comparenator-container {
+  position: relative;
+  max-width: 100%;
+}
+.layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+.layer-top { z-index: 2; opacity: .5; }
+.layer-bottom { z-index: 1; }
+
+.comparenator-side {
+  display: flex;
+}
+.comparenator-side .left,
+.comparenator-side .right {
+  width: 50%;
+  overflow: auto;
+}
+
+.comparenator-diff img {
+  max-width: 100%;
+}

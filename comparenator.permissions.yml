@@ -1,0 +1,9 @@
+view environment comparisons:
+  title: 'View environment comparisons'
+  description: 'Allows users to compare screenshots between environments.'
+  restrict access: false
+
+view node comparisons:
+  title: 'View node revision comparisons'
+  description: 'Allows users to compare screenshots between node revisions.'
+  restrict access: false

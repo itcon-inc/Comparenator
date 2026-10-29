@@ -1,0 +1,9 @@
+reference_site_url: ''
+retention_days: 7
+screen_sizes:
+  phone-portrait: '375x812'
+  phone-landscape: '812x375'
+  tablet-portrait: '768x1024'
+  tablet-landscape: '1024x768'
+  laptop: '1440x900'
+  desktop-large: '1920x1080'

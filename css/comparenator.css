@@ -1,0 +1,66 @@
+/* Container for onion‑skin comparison */
+.comparanator-container {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* Layered images */
+.layer,
+.comparanator-container img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+}
+
+.layer-bottom {
+  z-index: 1;
+}
+
+.layer-top {
+  z-index: 2;
+  opacity: 0.5;
+}
+
+/* Slider UI */
+.comparanator-slider {
+  position: relative;
+  width: 100%;
+  margin-top: 10px;
+  z-index: 5;
+  text-align: center;
+}
+
+#comparanator-slider {
+  width: 80%;
+  max-width: 500px;
+}
+
+/* Side-by-side layout */
+.comparanator-side-by-side {
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.comparanator-side {
+  flex: 1;
+  overflow: auto;
+  border-right: 1px solid #ccc;
+}
+
+.comparanator-side.right {
+  border-right: none;
+}
+
+/* Diff view */
+.comparanator-diff-view img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
