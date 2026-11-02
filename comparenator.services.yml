@@ -1,7 +1,11 @@
 services:
+  comparenator.page_link:
+    class: Drupal\comparenator\Service\PageLinkBuilder
+    arguments: ['@request_stack', '@config.factory', '@current_user', '@string_translation']
+
   comparenator.screenshot_manager:
     class: Drupal\comparenator\Service\ScreenshotManager
-    arguments: ['@file_system', '@config.factory', '@logger.channel.comparenator']
+    arguments: ['@file_system', '@config.factory', '@logger.channel.comparenator', '@file_url_generator', '@datetime.time']
 
   comparenator.pixel_diff:
     class: Drupal\comparenator\Service\PixelDiffGenerator

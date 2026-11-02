@@ -1,0 +1,25 @@
+{
+  "name": "itcon-inc/comparenator",
+  "description": "Screenshot comparison tools for Drupal environments and node revisions.",
+  "type": "drupal-module",
+  "license": "GPL-2.0-or-later",
+  "require": {
+    "php": ">=8.3",
+    "drupal/core": "^11 || ^12"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^11.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "Drupal\\comparenator\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Drupal\\Tests\\comparenator\\": "tests/src/",
+      "Drupal\\Tests\\": "vendor/drupal/core/tests/Drupal/Tests/"
+    }
+  }
+}
+

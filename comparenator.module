@@ -6,11 +6,46 @@
  */
 
 /**
- * Implements hook_page_attachments().
- *
- * Attach the toolbar library on every page so the Comparenator button works
- * reliably across node pages, admin pages, and system pages.
+ * Implements hook_help().
  */
-function comparenator_page_attachments(array &$attachments) {
-  $attachments['#attached']['library'][] = 'comparenator/toolbar';
+function comparenator_help($route_name, \Drupal\Core\Routing\RouteMatchInterface $route_match) {
+  if ($route_name === 'help.page.comparenator') {
+    return '<p>' . t('Comparenator compares PNG screenshots supplied by an external capture pipeline. Configure environment keys and viewport sizes, save screenshots with the screenshot services, then use the Comparenator toolbar tab or comparison routes. It does not capture pages automatically. Screenshots are stored in public files and must not contain confidential content.') . '</p>';
+  }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function comparenator_theme($existing, $type, $theme, $path) {
+  return [
+    'comparenator_toolbar' => [
+      'variables' => ['modes' => [], 'sizes' => []],
+    ],
+    'comparenator_onion' => [
+      'variables' => ['reference' => NULL, 'current' => NULL, 'toolbar' => NULL],
+    ],
+    'comparenator_side_by_side' => [
+      'variables' => ['reference' => NULL, 'current' => NULL, 'toolbar' => NULL],
+    ],
+    'comparenator_diff' => [
+      'variables' => ['diff' => NULL, 'toolbar' => NULL],
+    ],
+    'comparenator_missing' => [
+      'variables' => ['toolbar' => NULL, 'message' => ''],
+    ],
+  ];
+}
+/**
+ * Implements hook_page_top().
+ */
+function comparenator_page_top(array &$page_top) {
+  $page_top['comparenator'] = \Drupal::service('comparenator.page_link')->build();
+}
+
+/**
+ * Implements hook_cron().
+ */
+function comparenator_cron() {
+  \Drupal::service('comparenator.screenshot_manager')->purgeOldScreenshots();
 }

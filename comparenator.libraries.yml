@@ -1,3 +1,8 @@
+page_link:
+  css:
+    theme:
+      css/comparenator-page-link.css: {}
+
 viewer:
   version: 1.x
   js:
@@ -12,5 +17,4 @@ toolbar:
     js/comparenator_toolbar.js: {}
   dependencies:
     - core/drupal
-    - core/jquery
-    - core/drupalSettings
+    - core/once

@@ -5,6 +5,27 @@ comparenator.environment_compare:
     _title: 'Environment Comparison'
   requirements:
     _permission: 'view environment comparisons'
+    identifier: '[A-Za-z0-9_-]+'
+    size: '[A-Za-z0-9_-]+'
+    reference: '[A-Za-z0-9_-]+'
+    current: '[A-Za-z0-9_-]+'
+
+comparenator.revision_compare:
+  path: '/comparenator/node/{node}/{revA}/{revB}/{size}'
+  defaults:
+    _controller: '\Drupal\comparenator\Controller\CompareController::revisionCompare'
+    _title: 'Revision Comparison'
+  requirements:
+    _permission: 'view node comparisons'
+    _entity_access: 'node.view'
+    node: '\d+'
+    revA: '\d+'
+    revB: '\d+'
+    size: '[A-Za-z0-9_-]+'
+  options:
+    parameters:
+      node:
+        type: entity:node
 
 comparenator.page_compare:
   path: '/comparenator/from-current'

@@ -1,4 +1,6 @@
 reference_site_url: ''
+reference_environment: prod
+current_environment: local
 retention_days: 7
 screen_sizes:
   phone-portrait: '375x812'

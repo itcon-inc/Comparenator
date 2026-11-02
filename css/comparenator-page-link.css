@@ -1,0 +1,16 @@
+.comparenator-page-link {
+  display: block;
+  padding: 0.5rem 1rem;
+  color: #fff;
+  background: #232429;
+  text-align: end;
+}
+.comparenator-page-link:visited {
+  color: #fff;
+}
+.comparenator-page-link:hover,
+.comparenator-page-link:focus {
+  color: #fff;
+  text-decoration: underline;
+}
+

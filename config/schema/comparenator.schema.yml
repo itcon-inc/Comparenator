@@ -1,0 +1,22 @@
+omparenator.settings:
+  type: config_object
+  label: 'Comparenator settings'
+  mapping:
+    reference_site_url:
+      type: string
+      label: 'Reference environment base URL'
+    reference_environment:
+      type: string
+      label: 'Reference screenshot environment key'
+    current_environment:
+      type: string
+      label: 'Current screenshot environment key'
+    retention_days:
+      type: integer
+      label: 'Screenshot retention in days'
+    screen_sizes:
+      type: sequence
+      label: 'Viewport sizes'
+      sequence:
+        type: string
+        label: 'Viewport dimensions'

@@ -1,0 +1,17 @@
+<?php
+/**
+ * @file
+ * Installation and update hooks for Comparenator.
+ */
+/**
+ * Add environment keys to existing configuration.
+ */
+function comparenator_update_11001() {
+  $config = \Drupal::configFactory()->getEditable('comparenator.settings');
+  foreach (['reference_environment' => 'prod', 'current_environment' => 'local'] as $key => $value) {
+    if ($config->get($key) === NULL) {
+      $config->set($key, $value);
+    }
+  }
+  $config->save();
+}
