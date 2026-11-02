@@ -50,6 +50,7 @@ class SettingsForm extends ConfigFormBase {
       '#type' => 'details',
       '#title' => $this->t('Screen Sizes'),
       '#open' => TRUE,
+      '#tree' => TRUE,
       '#description' => $this->t('Define available screen sizes for comparison. Format: WIDTHxHEIGHT'),
     ];
 

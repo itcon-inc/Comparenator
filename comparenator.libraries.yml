@@ -1,0 +1,16 @@
+viewer:
+  version: 1.x
+  js:
+    js/comparenator.js: {}
+  css:
+    theme:
+      css/comparenator.css: {}
+
+toolbar:
+  version: 1.x
+  js:
+    js/comparenator_toolbar.js: {}
+  dependencies:
+    - core/drupal
+    - core/jquery
+    - core/drupalSettings

@@ -1,0 +1,16 @@
+<?php
+
+/**
+ * @file
+ * Hooks and integrations for the Comparenator module.
+ */
+
+/**
+ * Implements hook_page_attachments().
+ *
+ * Attach the toolbar library on every page so the Comparenator button works
+ * reliably across node pages, admin pages, and system pages.
+ */
+function comparenator_page_attachments(array &$attachments) {
+  $attachments['#attached']['library'][] = 'comparenator/toolbar';
+}

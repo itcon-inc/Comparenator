@@ -64,3 +64,19 @@
   width: 100%;
   height: auto;
 }
+
+.comparanator-ui-toolbar {
+  background: #f8f8f8;
+  padding: 10px;
+  border-bottom: 1px solid #ccc;
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+
+.comparanator-ui-toolbar a {
+  margin-right: 10px;
+}
+
+.comparanator-modes, .comparanator-sizes {
+  margin-bottom: 5px;
+}

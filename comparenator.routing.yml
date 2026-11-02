@@ -1,11 +1,3 @@
-comparenator.settings:
-  path: '/admin/config/development/comparenator'
-  defaults:
-    _form: '\Drupal\comparenator\Form\SettingsForm'
-    _title: 'Comparenator Settings'
-  requirements:
-    _permission: 'administer site configuration'
-
 comparenator.environment_compare:
   path: '/comparenator/env/{identifier}/{size}/{reference}/{current}'
   defaults:
@@ -14,12 +6,18 @@ comparenator.environment_compare:
   requirements:
     _permission: 'view environment comparisons'
 
-comparenator.revision_compare:
-  path: '/comparenator/node/{node}/{revA}/{revB}/{size}'
+comparenator.page_compare:
+  path: '/comparenator/from-current'
   defaults:
-    _controller: '\Drupal\comparenator\Controller\CompareController::revisionCompare'
-    _title: 'Revision Comparison'
+    _controller: '\Drupal\comparenator\Controller\CompareController::pageCompare'
+    _title: 'Comparenator'
   requirements:
-    _permission: 'view node comparisons'
+    _permission: 'view environment comparisons'
 
-
+comparenator.settings:
+  path: '/admin/config/development/comparenator'
+  defaults:
+    _form: '\Drupal\comparenator\Form\SettingsForm'
+    _title: 'Comparenator Settings'
+  requirements:
+    _permission: 'administer site configuration'

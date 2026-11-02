@@ -1,0 +1,17 @@
+<div class="comparanator-ui-toolbar">
+
+  <div class="comparanator-modes">
+    <strong>View as:</strong>
+    {{ modes.onion }}
+    {{ modes.side }}Side-by-side</a>
+    {{ modes.diff }}
+  </div>
+
+  <div class="comparanator-sizes">
+    <strong>Screen size:</strong>
+    {% for key, link in sizes %}
+      {{ link }}
+    {% endfor %}
+  </div>
+
+</div>

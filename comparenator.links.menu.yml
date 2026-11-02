@@ -1,0 +1,14 @@
+comparenator.settings_link:
+  title: 'Comparenator settings'
+  description: 'Configure Comparenator module settings.'
+  route_name: comparenator.settings
+  parent: system.admin_config_development
+  weight: 0
+
+comparenator.toolbar_link:
+  title: 'Comparenator'
+  description: 'Open Comparenator for the current page'
+  route_name: comparenator.page_compare
+  menu_name: toolbar
+  parent: system.admin
+  weight: 100
