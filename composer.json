@@ -1,5 +1,5 @@
 {
-  "name": "itcon-inc/comparenator",
+  "name": "drupal/comparenator",
   "description": "Screenshot comparison tools for Drupal environments and node revisions.",
   "type": "drupal-module",
   "license": "GPL-2.0-or-later",
