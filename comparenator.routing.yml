@@ -10,23 +10,6 @@ comparenator.environment_compare:
     reference: '[A-Za-z0-9_-]+'
     current: '[A-Za-z0-9_-]+'
 
-comparenator.revision_compare:
-  path: '/comparenator/node/{node}/{revA}/{revB}/{size}'
-  defaults:
-    _controller: '\Drupal\comparenator\Controller\CompareController::revisionCompare'
-    _title: 'Revision Comparison'
-  requirements:
-    _permission: 'view node comparisons'
-    _entity_access: 'node.view'
-    node: '\d+'
-    revA: '\d+'
-    revB: '\d+'
-    size: '[A-Za-z0-9_-]+'
-  options:
-    parameters:
-      node:
-        type: entity:node
-
 comparenator.page_compare:
   path: '/comparenator/from-current'
   defaults:
@@ -42,3 +25,4 @@ comparenator.settings:
     _title: 'Comparenator Settings'
   requirements:
     _permission: 'administer site configuration'
+

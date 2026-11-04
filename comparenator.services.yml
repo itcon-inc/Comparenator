@@ -1,15 +1,19 @@
 services:
+  comparenator.browser_capture:
+    class: Drupal\comparenator\Service\BrowserCapture
+    arguments: ['@file_system', '@config.factory']
+
   comparenator.page_link:
     class: Drupal\comparenator\Service\PageLinkBuilder
     arguments: ['@request_stack', '@config.factory', '@current_user', '@string_translation']
 
   comparenator.screenshot_manager:
     class: Drupal\comparenator\Service\ScreenshotManager
-    arguments: ['@file_system', '@config.factory', '@logger.channel.comparenator', '@file_url_generator', '@datetime.time']
+    arguments: ['@file_system', '@config.factory', '@logger.channel.comparenator', '@file_url_generator', '@comparenator.browser_capture', '@keyvalue', '@lock']
 
   comparenator.pixel_diff:
     class: Drupal\comparenator\Service\PixelDiffGenerator
-    arguments: ['@logger.channel.comparenator']
+    arguments: ['@file_system', '@file_url_generator']
 
   comparenator.environment_manager:
     class: Drupal\comparenator\Service\EnvironmentManager
@@ -22,3 +26,4 @@ services:
   logger.channel.comparenator:
     parent: logger.channel_base
     arguments: ['comparenator']
+

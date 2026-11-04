@@ -3,15 +3,18 @@
   position: relative;
   width: 100%;
   max-width: 100%;
-  overflow: hidden;
+  display: grid;
+  overflow: auto;
 }
 
 /* Layered images */
+.comparanator-layer {
+  grid-area: 1 / 1;
+}
+
 .layer,
 .comparanator-container img {
-  position: absolute;
-  top: 0;
-  left: 0;
+  display: block;
   width: 100%;
   height: auto;
 }
@@ -27,6 +30,7 @@
 
 /* Slider UI */
 .comparanator-slider {
+  grid-area: 2 / 1;
   position: relative;
   width: 100%;
   margin-top: 10px;
@@ -50,6 +54,8 @@
 
 .comparanator-side {
   flex: 1;
+  min-width: 0;
+  max-height: 80vh;
   overflow: auto;
   border-right: 1px solid #ccc;
 }

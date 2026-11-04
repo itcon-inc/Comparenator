@@ -10,7 +10,7 @@
  */
 function comparenator_help($route_name, \Drupal\Core\Routing\RouteMatchInterface $route_match) {
   if ($route_name === 'help.page.comparenator') {
-    return '<p>' . t('Comparenator compares PNG screenshots supplied by an external capture pipeline. Configure environment keys and viewport sizes, save screenshots with the screenshot services, then use the Comparenator toolbar tab or comparison routes. It does not capture pages automatically. Screenshots are stored in public files and must not contain confidential content.') . '</p>';
+    return '<p>' . t('Comparenator uses local Playwright and Chromium to capture missing screenshots. Configure both environment URLs and viewport sizes, then use the Comparenator link at the top of any page. Unchanged local captures are reused; Refresh screenshots recaptures both environments. Captures are anonymous and publicly stored: never capture confidential content. See the module README for installation instructions.') . '</p>';
   }
 }
 
@@ -20,7 +20,7 @@ function comparenator_help($route_name, \Drupal\Core\Routing\RouteMatchInterface
 function comparenator_theme($existing, $type, $theme, $path) {
   return [
     'comparenator_toolbar' => [
-      'variables' => ['modes' => [], 'sizes' => []],
+      'variables' => ['modes' => [], 'sizes' => [], 'refresh' => NULL],
     ],
     'comparenator_onion' => [
       'variables' => ['reference' => NULL, 'current' => NULL, 'toolbar' => NULL],
@@ -36,6 +36,7 @@ function comparenator_theme($existing, $type, $theme, $path) {
     ],
   ];
 }
+
 /**
  * Implements hook_page_top().
  */
@@ -49,3 +50,4 @@ function comparenator_page_top(array &$page_top) {
 function comparenator_cron() {
   \Drupal::service('comparenator.screenshot_manager')->purgeOldScreenshots();
 }
+

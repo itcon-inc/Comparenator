@@ -10,6 +10,9 @@ viewer:
   css:
     theme:
       css/comparenator.css: {}
+  dependencies:
+    - core/drupal
+    - core/once
 
 toolbar:
   version: 1.x
@@ -17,4 +20,6 @@ toolbar:
     js/comparenator_toolbar.js: {}
   dependencies:
     - core/drupal
-    - core/once
+    - core/jquery
+    - core/drupalSettings
+

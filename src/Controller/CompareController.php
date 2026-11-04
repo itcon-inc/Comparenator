@@ -9,6 +9,11 @@ use Drupal\comparenator\Service\PixelDiffGenerator;
 use Drupal\comparenator\Service\EnvironmentManager;
 use Drupal\comparenator\Service\RevisionManager;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Form\FormBuilderInterface;
+use Drupal\Core\Url;
+use Drupal\comparenator\Form\RefreshForm;
+use Psr\Log\LoggerInterface;
 
 /**
  * Controller for rendering Comparenator comparison pages.
@@ -26,13 +31,18 @@ class CompareController extends ControllerBase {
     PixelDiffGenerator $pixelDiff,
     EnvironmentManager $envManager,
     RevisionManager $revisionManager,
-    RequestStack $request_stack
+    RequestStack $request_stack,
+    FormBuilderInterface $form_builder,
+    ConfigFactoryInterface $config_factory,
+    protected LoggerInterface $logger,
   ) {
     $this->screenshots = $screenshots;
     $this->pixelDiff = $pixelDiff;
     $this->envManager = $envManager;
     $this->revisionManager = $revisionManager;
     $this->requestStack = $request_stack;
+    $this->configFactory = $config_factory;
+    $this->formBuilder = $form_builder;
   }
 
   public static function create(ContainerInterface $container) {
@@ -41,7 +51,10 @@ class CompareController extends ControllerBase {
       $container->get('comparenator.pixel_diff'),
       $container->get('comparenator.environment_manager'),
       $container->get('comparenator.revision_manager'),
-      $container->get('request_stack')
+      $container->get('request_stack'),
+      $container->get('form_builder'),
+      $container->get('config.factory'),
+      $container->get('logger.channel.comparenator'),
     );
   }
 
@@ -52,32 +65,41 @@ class CompareController extends ControllerBase {
     $request = $this->requestStack->getCurrentRequest();
     $mode = $request->query->get('mode', 'onion');
 
-    // Load screenshots.
-    $reference_url = $this->screenshots->getEnvironmentScreenshotUrl($reference, $identifier, $size);
-    $current_url = $this->screenshots->getEnvironmentScreenshotUrl($current, $identifier, $size);
-
-    // Build UI toolbar.
     $toolbar = $this->buildToolbar($identifier, $size, $reference, $current);
-
-    if (!$reference_url || !$current_url) {
+    try {
+      $path = $request->query->get('path');
+      if ($path !== NULL) {
+        [$reference_url, $current_url] = $this->screenshots->ensureComparison($identifier, $size, $reference, $current, $path);
+      }
+      else {
+        // Legacy identifiers are not reversible: do not guess a capture URL.
+        $reference_url = $this->screenshots->getEnvironmentScreenshotUrl($reference, $identifier, $size);
+        $current_url = $this->screenshots->getEnvironmentScreenshotUrl($current, $identifier, $size);
+      }
+      if (!$reference_url || !$current_url) {
+        return [
+          '#theme' => 'comparenator_missing',
+          '#toolbar' => $toolbar,
+          '#message' => $this->t('Screenshots are missing. Open Comparenator using the link on the page you want to compare to enable on-demand capture.'),
+          '#cache' => ['max-age' => 0],
+        ];
+      }
+      $build = match ($mode) {
+        'side' => $this->renderSideBySide($reference_url, $current_url, $toolbar),
+        'diff' => $this->renderDiff($this->pixelDiff->generateDiff($reference_url, $current_url, $identifier, $size), $toolbar),
+        default => $this->renderOnionSkin($reference_url, $current_url, $toolbar),
+      };
+      $build['#cache']['max-age'] = 0;
+      return $build;
+    }
+    catch (\InvalidArgumentException | \RuntimeException $exception) {
+      $this->logger->error('Comparison failed: @message', ['@message' => $exception->getMessage()]);
       return [
         '#theme' => 'comparenator_missing',
-        'toolbar' => $toolbar,
-        '#message' => $this->t('One or more screenshots are missing for the selected environment or size.'),
+        '#toolbar' => $toolbar,
+        '#message' => $this->t('Unable to prepare screenshots. Check the Comparenator settings, browser installation and site logs, then try Refresh screenshots.'),
+        '#cache' => ['max-age' => 0],
       ];
-    }
-
-    switch ($mode) {
-      case 'side':
-        return $this->renderSideBySide($reference_url, $current_url, $toolbar);
-
-      case 'diff':
-        $diff_url = $this->pixelDiff->generateDiff($reference_url, $current_url, $identifier, $size);
-        return $this->renderDiff($diff_url, $toolbar);
-
-      case 'onion':
-      default:
-        return $this->renderOnionSkin($reference_url, $current_url, $toolbar);
     }
   }
 
@@ -125,7 +147,7 @@ class CompareController extends ControllerBase {
       '#type' => 'inline_template',
       '#template' => '<p>{{ msg }}</p>',
       '#context' => [
-        'msg' => $this->t('Use the Comparenator toolbar button to open comparisons.'),
+        'msg' => $this->t('Configure screenshot viewport sizes, then open Comparenator using the link at the top of the page you want to compare.'),
       ],
     ];
   }
@@ -137,25 +159,34 @@ class CompareController extends ControllerBase {
     $config = $this->config('comparenator.settings');
     $sizes = $config->get('screen_sizes') ?? [];
 
-    $base_path = "/comparenator/env/$identifier";
-
-    // Mode switching links.
-    $mode_links = [
-      'onion' => "$base_path/$size/$ref/$cur?mode=onion",
-      'side'  => "$base_path/$size/$ref/$cur?mode=side",
-      'diff'  => "$base_path/$size/$ref/$cur?mode=diff",
-    ];
-
-    // Screen size switching links.
+    $request = $this->requestStack->getCurrentRequest();
+    $path = $request->query->get('path');
+    $mode = $request->query->get('mode', 'onion');
+    $parameters = ['identifier' => $identifier, 'size' => $size, 'reference' => $ref, 'current' => $cur];
+    $query = $path === NULL ? [] : ['path' => $path];
+    $mode_links = [];
+    foreach (['onion' => $this->t('Onion skin'), 'side' => $this->t('Side-by-side'), 'diff' => $this->t('Pixel diff')] as $key => $label) {
+      $mode_links[$key] = [
+        '#type' => 'link',
+        '#title' => $label,
+        '#url' => Url::fromRoute('comparenator.environment_compare', $parameters, ['query' => $query + ['mode' => $key]]),
+      ];
+    }
     $size_links = [];
     foreach ($sizes as $size_key => $resolution) {
-      $size_links[$size_key] = "$base_path/$size_key/$ref/$cur";
+      $size_parameters = array_replace($parameters, ['size' => $size_key]);
+      $size_links[$size_key] = [
+        '#type' => 'link',
+        '#title' => $this->t('@size (@resolution)', ['@size' => $size_key, '@resolution' => $resolution]),
+        '#url' => Url::fromRoute('comparenator.environment_compare', $size_parameters, ['query' => $query + ['mode' => $mode]]),
+      ];
     }
 
     return [
       '#theme' => 'comparenator_toolbar',
       '#modes' => $mode_links,
       '#sizes' => $size_links,
+      '#refresh' => $path === NULL ? [] : $this->formBuilder->getForm(RefreshForm::class, $parameters, $path, $mode),
     ];
   }
 
@@ -175,7 +206,7 @@ class CompareController extends ControllerBase {
         '#uri' => $cur_url,
         '#attributes' => ['class' => ['layer', 'layer-top'], 'id' => 'comparanator-top'],
       ],
-      'toolbar' => $toolbar,
+      '#toolbar' => $toolbar,
       '#attached' => [
         'library' => ['comparenator/viewer'],
       ],
@@ -190,7 +221,7 @@ class CompareController extends ControllerBase {
       '#theme' => 'comparenator_side_by_side',
       '#reference' => ['#theme' => 'image', '#uri' => $ref_url],
       '#current' => ['#theme' => 'image', '#uri' => $cur_url],
-      'toolbar' => $toolbar,
+      '#toolbar' => $toolbar,
       '#attached' => [
         'library' => ['comparenator/viewer'],
       ],
@@ -204,7 +235,7 @@ class CompareController extends ControllerBase {
     return [
       '#theme' => 'comparenator_diff',
       '#diff' => ['#theme' => 'image', '#uri' => $diff_url],
-      'toolbar' => $toolbar,
+      '#toolbar' => $toolbar,
       '#attached' => [
         'library' => ['comparenator/viewer'],
       ],
@@ -212,3 +243,4 @@ class CompareController extends ControllerBase {
   }
 
 }
+

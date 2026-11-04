@@ -1,23 +1,19 @@
-(function (Drupal) {
+(function (Drupal, once) {
 
   Drupal.behaviors.comparenatorViewer = {
     attach: function (context) {
 
-      // Onion‑skin slider.
-      const slider = context.querySelector('#comparanator-slider');
-      const topLayer = context.querySelector('#comparanator-top');
-
-      if (slider && topLayer) {
+      once('comparenator-slider', '#comparanator-slider', context).forEach((slider) => {
+        const topLayer = slider.closest('.comparanator-container').querySelector('#comparanator-top');
         slider.addEventListener('input', function () {
           topLayer.style.opacity = this.value / 100;
         });
-      }
+      });
 
       // Optional: Side‑by‑side scroll sync.
-      const left = context.querySelector('.comparanator-side.left');
-      const right = context.querySelector('.comparanator-side.right');
-
-      if (left && right) {
+      once('comparenator-scroll', '.comparanator-side-by-side', context).forEach((container) => {
+        const left = container.querySelector('.comparanator-side.left');
+        const right = container.querySelector('.comparanator-side.right');
         let syncing = false;
 
         function syncScroll(source, target) {
@@ -30,9 +26,10 @@
 
         left.addEventListener('scroll', () => syncScroll(left, right));
         right.addEventListener('scroll', () => syncScroll(right, left));
-      }
+      });
 
     }
   };
 
-})(Drupal);
+})(Drupal, once);
+

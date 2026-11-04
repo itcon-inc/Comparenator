@@ -1,21 +1,26 @@
 <?php
+
 namespace Drupal\comparenator\Service;
+
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\StringTranslation\TranslationInterface;
 use Drupal\Core\Url;
 use Symfony\Component\HttpFoundation\RequestStack;
+
 /**
  * Builds a permission-aware comparison link for the current page.
  */
 class PageLinkBuilder {
+
   public function __construct(
     protected RequestStack $requestStack,
     protected ConfigFactoryInterface $configFactory,
     protected AccountProxyInterface $currentUser,
     protected TranslationInterface $translation,
   ) {}
+
   /**
    * Builds a link independent of the Toolbar module and JavaScript.
    */
@@ -25,14 +30,21 @@ class PageLinkBuilder {
       '#access' => $this->currentUser->hasPermission('view environment comparisons'),
     ];
     CacheableMetadata::createFromObject($config)
-      ->addCacheContexts(['url.path', 'user.permissions'])
+      ->addCacheContexts(['url.path', 'url.query_args:path', 'user.permissions'])
       ->applyTo($build);
+
     if (!$build['#access']) {
       return $build;
     }
+
     // Exclude the installation base path and query string.
-    $path = $this->requestStack->getMainRequest()->getPathInfo();
-    $identifier = trim(str_replace('/', '_', $path), '_') ?: 'frontpage';
+    $request = $this->requestStack->getMainRequest();
+    $path = $request->getPathInfo();
+    if (str_starts_with($path, '/comparenator/')) {
+      $path = $request->query->get('path', '/');
+    }
+    // Hash the full path to avoid collisions between aliases containing "_".
+    $identifier = $path === '/' ? 'frontpage' : hash('sha256', $path);
     $sizes = $config->get('screen_sizes') ?? [];
     $size = isset($sizes['laptop']) ? 'laptop' : array_key_first($sizes);
     $url = $size === NULL
@@ -42,7 +54,8 @@ class PageLinkBuilder {
         'size' => $size,
         'reference' => 'prod',
         'current' => 'local',
-      ], ['query' => ['mode' => 'onion']]);
+      ], ['query' => ['mode' => 'onion', 'path' => $path]]);
+
     return $build + [
       '#type' => 'link',
       '#title' => $this->translation->translate('Comparenator (opens in a new tab)'),
@@ -55,4 +68,6 @@ class PageLinkBuilder {
       '#attached' => ['library' => ['comparenator/page_link']],
     ];
   }
+
 }
+

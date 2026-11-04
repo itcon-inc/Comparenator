@@ -2,113 +2,171 @@
 
 namespace Drupal\comparenator\Service;
 
-use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
-use Drupal\Core\Logger\LoggerChannelInterface;
+use Drupal\Core\File\FileExists;
+use Drupal\Core\File\FileSystemInterface;
+use Drupal\Core\File\FileUrlGeneratorInterface;
+use Drupal\Core\KeyValueStore\KeyValueFactoryInterface;
+use Drupal\Core\Lock\LockBackendInterface;
+use Psr\Log\LoggerInterface;
 
 /**
- * Handles storage and retrieval of comparison screenshots.
+ * Stores screenshots and captures missing or changed environment pages.
  */
 class ScreenshotManager {
 
-  /**
-   * @var \Drupal\Core\File\FileSystemInterface
-   */
-  protected $fileSystem;
-
-  /**
-   * @var \Drupal\Core\Config\ConfigFactoryInterface
-   */
-  protected $configFactory;
-
-  /**
-   * @var \Drupal\Core\Logger\LoggerChannelInterface
-   */
-  protected $logger;
-
-  /**
-   * Constructor.
-   */
   public function __construct(
-    FileSystemInterface $file_system,
-    ConfigFactoryInterface $config_factory,
-    LoggerChannelInterface $logger
-  ) {
-    $this->fileSystem = $file_system;
-    $this->configFactory = $config_factory;
-    $this->logger = $logger;
+    protected FileSystemInterface $fileSystem,
+    protected ConfigFactoryInterface $configFactory,
+    protected LoggerInterface $logger,
+    protected FileUrlGeneratorInterface $fileUrlGenerator,
+    protected BrowserCapture $browser,
+    protected KeyValueFactoryInterface $keyValueFactory,
+    protected LockBackendInterface $lock,
+  ) {}
+
+  /**
+   * Ensures reference and local screenshots exist for this page.
+   */
+  public function ensureComparison(string $identifier, string $size, string $reference, string $current, string $path, bool $force = FALSE): array {
+    if ($reference !== 'prod' || $current !== 'local') {
+      throw new \InvalidArgumentException('Automatic capture supports the prod/local environment pair.');
+    }
+    $config = $this->configFactory->get('comparenator.settings');
+    $reference_base = rtrim((string) $config->get('reference_site_url'), '/');
+    $current_base = rtrim((string) $config->get('current_site_url'), '/');
+    foreach ([$reference_base, $current_base] as $base) {
+      if (!filter_var($base, FILTER_VALIDATE_URL) || !in_array(parse_url($base, PHP_URL_SCHEME), ['http', 'https'], TRUE) || parse_url($base, PHP_URL_QUERY) !== NULL || parse_url($base, PHP_URL_FRAGMENT) !== NULL || parse_url($base, PHP_URL_USER) !== NULL) {
+        throw new \InvalidArgumentException('Configure valid HTTP(S) reference and local base URLs without credentials, queries or fragments.');
+      }
+    }
+    $dimensions = ($config->get('screen_sizes') ?? [])[$size] ?? '';
+    if (!preg_match('/^([1-9][0-9]{0,3})x([1-9][0-9]{0,3})$/D', $dimensions, $matches) || (int) $matches[1] > 4096 || (int) $matches[2] > 4096) {
+      throw new \InvalidArgumentException('Select a configured viewport between 1 and 4096 pixels per dimension.');
+    }
+    $decoded_path = rawurldecode($path);
+    if (!str_starts_with($path, '/') || str_starts_with($decoded_path, '//') || preg_match('/[?#\\\\\x00-\x20]/', $decoded_path) || preg_match('@(?:^|/)\.\.?(?:/|$)@', $decoded_path) || preg_match('@^/comparenator(?:/|$)@', $decoded_path)) {
+      throw new \InvalidArgumentException('The capture path must be a site-relative path without a query string.');
+    }
+    $this->getScreenshotPath($reference, $identifier, $size);
+    $this->getScreenshotPath($current, $identifier, $size);
+    $key = hash('sha256', serialize([$identifier, $size, $reference, $current]));
+    $lock_name = 'comparenator:' . $key;
+    if (!$this->lock->acquire($lock_name, 240)) {
+      throw new \RuntimeException('This comparison is already being captured. Try again shortly.');
+    }
+    try {
+      $store = $this->keyValueFactory->get('comparenator.captures');
+      foreach ([$reference => $reference_base, $current => $current_base] as $environment => $base) {
+        $uri = $this->getScreenshotPath($environment, $identifier, $size);
+        $metadata_key = hash('sha256', $uri);
+        $metadata = $store->get($metadata_key, []);
+        $url = $base . $path;
+        $exists = is_file($uri);
+        $source_changed = ($metadata['url'] ?? NULL) !== $url || ($metadata['dimensions'] ?? NULL) !== $dimensions;
+        if ($environment === $reference && $exists && !$force && !$source_changed) {
+          continue;
+        }
+        $previous = $exists && !$source_changed ? ($metadata['fingerprint'] ?? NULL) : NULL;
+        $capture = $this->browser->capture($url, (int) $matches[1], (int) $matches[2], $previous, $force || !$exists || $source_changed);
+        if ($capture['data'] !== NULL) {
+          $this->saveScreenshot($environment, $identifier, $size, $capture['data']);
+        }
+        $store->set($metadata_key, [
+          'url' => $url,
+          'dimensions' => $dimensions,
+          'fingerprint' => $capture['fingerprint'],
+        ]);
+      }
+      return [
+        $this->getEnvironmentScreenshotUrl($reference, $identifier, $size),
+        $this->getEnvironmentScreenshotUrl($current, $identifier, $size),
+      ];
+    }
+    catch (\RuntimeException $exception) {
+      $this->logger->error('Screenshot capture failed: @message', ['@message' => $exception->getMessage()]);
+      throw $exception;
+    }
+    finally {
+      $this->lock->release($lock_name);
+    }
   }
 
   /**
-   * Get full screenshot directory for an environment + size.
+   * Builds a filesystem-safe screenshot URI.
    */
-  protected function getBaseDirectory($env, $size) {
-    return "public://comparenator/$env/$size";
+  protected function getScreenshotPath(string $environment, string $identifier, string $size): string {
+    foreach ([$environment, $identifier, $size] as $component) {
+      if (!preg_match('/^[A-Za-z0-9_-]+$/D', $component)) {
+        throw new \InvalidArgumentException('Screenshot keys may contain only letters, numbers, underscores and hyphens.');
+      }
+    }
+    return "public://comparenator/$environment/$size/$identifier.png";
   }
 
   /**
-   * Get screenshot file path.
+   * Returns a cache-busted public URL, or FALSE if the PNG is missing.
    */
-  protected function getScreenshotPath($env, $identifier, $size) {
-    $dir = $this->getBaseDirectory($env, $size);
-    return "$dir/$identifier.png";
-  }
-
-  /**
-   * Get environment screenshot URL; does not create screenshot.
-   *
-   * @return string|false
-   */
-  public function getEnvironmentScreenshotUrl($env, $identifier, $size) {
-    $path = $this->getScreenshotPath($env, $identifier, $size);
-
-    if (!file_exists($this->fileSystem->realpath($path))) {
-      $this->logger->warning("Screenshot missing: $path");
+  public function getEnvironmentScreenshotUrl($env, $identifier, $size): string|false {
+    $uri = $this->getScreenshotPath($env, $identifier, $size);
+    if (!is_file($uri)) {
       return FALSE;
     }
-
-    return file_create_url($path);
+    $hash = hash_file('sha256', $uri);
+    if ($hash === FALSE) {
+      throw new \RuntimeException('Unable to read a screenshot.');
+    }
+    return $this->fileUrlGenerator->generateString($uri) . '?v=' . $hash;
   }
 
   /**
-   * Save a screenshot file (used by external screenshot generator).
+   * Atomically replaces a screenshot after validating capture output.
    */
-  public function saveScreenshot($env, $identifier, $size, $data) {
-    $dir = $this->getBaseDirectory($env, $size);
-    $this->fileSystem->prepareDirectory($dir, FileSystemInterface::CREATE_DIRECTORY);
-
-    $path = $this->getScreenshotPath($env, $identifier, $size);
-    file_put_contents($this->fileSystem->realpath($path), $data);
-
-    return $path;
+  public function saveScreenshot($env, $identifier, $size, $data): string {
+    if (!is_string($data) || !str_starts_with($data, "\x89PNG\r\n\x1a\n")) {
+      throw new \InvalidArgumentException('Screenshot data must be PNG.');
+    }
+    $uri = $this->getScreenshotPath($env, $identifier, $size);
+    $directory = dirname($uri);
+    if (!$this->fileSystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY)) {
+      throw new \RuntimeException('Unable to prepare screenshot storage.');
+    }
+    $temporary = $this->fileSystem->tempnam($directory, 'capture-');
+    if ($temporary === FALSE) {
+      throw new \RuntimeException('Unable to allocate screenshot storage.');
+    }
+    try {
+      if (file_put_contents($temporary, $data) !== strlen($data)) {
+        throw new \RuntimeException('Unable to write the screenshot.');
+      }
+      $this->fileSystem->move($temporary, $uri, FileExists::Replace);
+    }
+    finally {
+      if (is_file($temporary)) {
+        $this->fileSystem->delete($temporary);
+      }
+    }
+    return $uri;
   }
 
   /**
    * Purge screenshots older than retention_days.
    */
-  public function purgeOldScreenshots() {
-    $config = $this->configFactory->get('comparenator.settings');
-    $days = (int) ($config->get('retention_days') ?? 7);
-    $threshold = time() - ($days * 86400);
-
-    $base = "public://comparenator";
-    $real_base = $this->fileSystem->realpath($base);
-    if (!is_dir($real_base)) {
+  public function purgeOldScreenshots(): void {
+    $days = max(1, (int) ($this->configFactory->get('comparenator.settings')->get('retention_days') ?? 7));
+    $base = $this->fileSystem->realpath('public://comparenator');
+    if (!$base || !is_dir($base)) {
       return;
     }
-
-    $iterator = new \RecursiveIteratorIterator(
-      new \RecursiveDirectoryIterator($real_base, \FilesystemIterator::SKIP_DOTS)
-    );
-
+    $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($base, \FilesystemIterator::SKIP_DOTS));
     foreach ($iterator as $file) {
-      if ($file->isFile()) {
-        if ($file->getMTime() < $threshold) {
-          unlink($file->getPathname());
-          $this->logger->notice("Purged old screenshot: " . $file->getFilename());
-        }
+      if (!$file->isLink() && $file->isFile() && $file->getExtension() === 'png' && $file->getMTime() < time() - $days * 86400) {
+        $this->fileSystem->delete($file->getPathname());
+        $relative = substr($file->getPathname(), strlen($base) + 1);
+        $this->keyValueFactory->get('comparenator.captures')->delete(hash('sha256', 'public://comparenator/' . $relative));
       }
     }
   }
 
 }
+
